@@ -131,3 +131,7 @@ dmypy.json
 keys.py
 twitter
 password.py
+
+X509-cert-6071320618069174467.pem
+
+logs/
