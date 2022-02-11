@@ -2,10 +2,9 @@ from datetime import timedelta
 import datetime
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
-from airflow.utils.dates import days_ago
 from main import twitter_elt
 
-
+# configuringn airflow to run the job on a daily basis 
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
@@ -23,6 +22,7 @@ dag = DAG(
     schedule_interval=timedelta(days=1)
 )
 
+# represents a node in the directed acyclic graph 
 etl = PythonOperator(
     task_id='twitter_elt',
     python_callable=twitter_elt,

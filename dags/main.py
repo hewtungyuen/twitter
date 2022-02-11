@@ -1,6 +1,5 @@
-# pip install "apache-airflow==2.2.3" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.2.3/constraints-3.8.txt"
-
 # mongodb connection
+from pandas import to_datetime
 from pymongo import MongoClient
 
 def databaseConnection():
@@ -23,9 +22,13 @@ import datetime
 # function to convert datetime object to format accepted by tweepy 
 def convert_format(datetime_obj):
     year = str(datetime_obj.year)
-    month = '0' + str(datetime_obj.month)
+    month = str(datetime_obj.month)
+    if len(month) == 1:
+        month = '0' + month
+        
     day = str(datetime_obj.day)
-
+    if len(day) == 1:
+        day = '0' + str(datetime_obj.day)
     return year + month + day + '0000'
 
 # function to remove link from a tweet 
@@ -35,16 +38,18 @@ def remove_link(tweet):
 
 # extracting data using tweepy
 def extract():
+
+    # credentials for API usage 
     auth = tweepy.OAuthHandler(API_KEY, API_KEY_SECRET)
     auth.set_access_token(ACCESS_TOKEN,ACCESS_TOKEN_SECRET)
     api = tweepy.API(auth)
 
     # obtaining yesterday's date
-    yesterday = datetime.datetime.today() - datetime.timedelta(1)
+    yesterday = datetime.datetime.utcnow() - datetime.timedelta(days=1)
     yesterday = convert_format(yesterday)
 
     # obtaining tweets from yesterday's date until now
-    tweets = api.search_30_day(label = 'twitterETL', query='from:WSJ', fromDate = yesterday, maxResults = 10)
+    tweets = api.search_30_day(label = 'twitterETL', query='from:WSJ', fromDate = yesterday, maxResults = 100)
 
     print('Tweets extracted.')
     return tweets
@@ -52,11 +57,13 @@ def extract():
 # storing data in MongoDB
 def load(collection, tweets):
     for tweet in tweets:
+        
         try:
             timestamp = tweet.created_at
             retweet_count = tweet.retweet_count
             full_tweet = tweet.extended_tweet['full_text']
 
+            # inserting one document into the collection 
             collection.insert_one({'timestamp': timestamp, 'retweet_count': retweet_count, 'full_tweet': full_tweet})
         except:
             pass
@@ -67,11 +74,12 @@ def load(collection, tweets):
 def transform(collection):
     yesterday = datetime.datetime.today() - datetime.timedelta(1)
 
-    # taking data out of mongodb 
+    # querying tweets according to highest retweet count 
     data = collection.find({'timestamp': {'$gte': yesterday}}).sort('retweet_count',-1).limit(3)
 
     top_tweets = []
 
+    # text processing to obtain the article link 
     for d in data:
         retweet_count = d['retweet_count']
         full_tweet = d['full_tweet']
